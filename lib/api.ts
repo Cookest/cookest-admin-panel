@@ -30,3 +30,25 @@ export async function adminLogin(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
 }
+
+// ── Users ──
+export async function getUsers(token: string, page = 1, perPage = 20) {
+  return request<{ users: any[]; total: number }>(
+    `${API_BASE}/admin/users?page=${page}&per_page=${perPage}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+}
+
+export async function getUser(token: string, id: string) {
+  return request<any>(`${API_BASE}/admin/users/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function updateUser(token: string, id: string, data: Record<string, unknown>) {
+  return request<any>(`${API_BASE}/admin/users/${id}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
