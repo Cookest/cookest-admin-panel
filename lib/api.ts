@@ -52,3 +52,11 @@ export async function updateUser(token: string, id: string, data: Record<string,
     body: JSON.stringify(data),
   });
 }
+
+// ── Recipes ──
+export async function getRecipes(token: string, page = 1, perPage = 20) {
+  return request<{ recipes: any[]; total: number }>(
+    `${FOOD_API_BASE}/recipes?page=${page}&per_page=${perPage}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+}
