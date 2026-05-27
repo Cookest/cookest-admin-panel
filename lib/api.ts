@@ -60,3 +60,39 @@ export async function getRecipes(token: string, page = 1, perPage = 20) {
     { headers: { Authorization: `Bearer ${token}` } }
   );
 }
+
+// ── Stats ──
+export async function getDashboardStats(token: string) {
+  return request<{
+    total_users: number;
+    total_recipes: number;
+    total_ingredients: number;
+    active_meal_plans: number;
+    ai_chats_today: number;
+    system_health: Record<string, string>;
+  }>(`${API_BASE}/admin/stats`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// ── System ──
+export async function getSystemHealth(token: string) {
+  return request<Record<string, any>>(`${API_BASE}/admin/health`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// ── Settings ──
+export async function getSettings(token: string) {
+  return request<Record<string, any>>(`${API_BASE}/admin/settings`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function updateSettings(token: string, settings: Record<string, unknown>) {
+  return request<any>(`${API_BASE}/admin/settings`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(settings),
+  });
+}
