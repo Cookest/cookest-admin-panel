@@ -1,5 +1,37 @@
-const API_BASE = process.env.APP_API_INTERNAL_URL || process.env.NEXT_PUBLIC_APP_API_URL || "http://localhost:8080";
-const FOOD_API_BASE = process.env.FOOD_API_INTERNAL_URL || process.env.NEXT_PUBLIC_FOOD_API_URL || "http://localhost:8081";
+const getApiBase = () => {
+  if (process.env.NEXT_PUBLIC_APP_API_URL) {
+    return process.env.NEXT_PUBLIC_APP_API_URL;
+  }
+  if (process.env.APP_API_INTERNAL_URL) {
+    return process.env.APP_API_INTERNAL_URL;
+  }
+  if (typeof window !== "undefined") {
+    // Dynamically fallback to the current page hostname (e.g. 192.168.x.x) on port 8080 for local network testing
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:8080`;
+  }
+  return "http://localhost:8080";
+};
+
+const getFoodApiBase = () => {
+  if (process.env.NEXT_PUBLIC_FOOD_API_URL) {
+    return process.env.NEXT_PUBLIC_FOOD_API_URL;
+  }
+  if (process.env.FOOD_API_INTERNAL_URL) {
+    return process.env.FOOD_API_INTERNAL_URL;
+  }
+  if (typeof window !== "undefined") {
+    // Dynamically fallback to the current page hostname (e.g. 192.168.x.x) on port 8081 for local network testing
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:8081`;
+  }
+  return "http://localhost:8081";
+};
+
+const API_BASE = getApiBase();
+const FOOD_API_BASE = getFoodApiBase();
 
 export interface ApiError {
   status: number;
