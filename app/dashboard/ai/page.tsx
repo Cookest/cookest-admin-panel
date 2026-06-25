@@ -14,7 +14,6 @@ export default function AiPage() {
     ollamaUrl: "http://ollama:11434",
     chatRateLimitFree: 10,
     chatRateLimitPro: 0,
-    imageGenEnabled: false,
   });
   const [saved, setSaved] = useState(false);
 
@@ -152,23 +151,7 @@ export default function AiPage() {
               </div>
             </div>
 
-            {/* Image Gen */}
-            <div className="bg-surface rounded-xl p-6 shadow-sm border border-surface-container">
-              <label className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-heading font-bold">AI Image Generation</h2>
-                  <p className="text-sm text-on-surface-dim mt-1">
-                    Auto-generate recipe hero and step images using the image-gen service.
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={config.imageGenEnabled}
-                  onChange={(e) => update("imageGenEnabled", e.target.checked)}
-                  className="w-6 h-6 accent-primary"
-                />
-              </label>
-            </div>
+
           </>
         )}
 

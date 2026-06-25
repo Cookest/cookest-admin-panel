@@ -2,7 +2,6 @@
 export const features = {
   ai: process.env.COOKEST_AI_ENABLED === "true",
   stripe: process.env.COOKEST_STRIPE_ENABLED === "true",
-  imageGen: process.env.COOKEST_IMAGE_GEN_ENABLED === "true",
   pdfPipeline: process.env.COOKEST_PDF_PIPELINE_ENABLED === "true",
   instanceName: process.env.COOKEST_INSTANCE_NAME || "Cookest",
 };

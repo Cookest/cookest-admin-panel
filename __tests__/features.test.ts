@@ -4,7 +4,6 @@ describe("Feature flags", () => {
   it("defaults all flags to false when env vars are unset", async () => {
     vi.stubEnv("COOKEST_AI_ENABLED", "");
     vi.stubEnv("COOKEST_STRIPE_ENABLED", "");
-    vi.stubEnv("COOKEST_IMAGE_GEN_ENABLED", "");
     vi.stubEnv("COOKEST_PDF_PIPELINE_ENABLED", "");
     vi.stubEnv("COOKEST_INSTANCE_NAME", "");
 

@@ -27,7 +27,6 @@ export default function SetupPage() {
     aiEnabled: true,
     ollamaModel: "llama3.2",
     stripeEnabled: false,
-    imageGenEnabled: false,
     pdfPipelineEnabled: false,
   });
   const router = useRouter();
@@ -178,11 +177,7 @@ export default function SetupPage() {
                   label: "Stripe Payments",
                   desc: "Enable subscription tiers and payment processing",
                 },
-                {
-                  key: "imageGenEnabled",
-                  label: "AI Image Generation",
-                  desc: "Auto-generate recipe hero and step images",
-                },
+
                 {
                   key: "pdfPipelineEnabled",
                   label: "PDF Price Scraping",
