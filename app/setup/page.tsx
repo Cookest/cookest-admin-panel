@@ -29,6 +29,7 @@ export default function SetupPage() {
     stripeEnabled: false,
     pdfPipelineEnabled: false,
   });
+  const [error, setError] = useState("");
   const router = useRouter();
   const setToken = useAuth((s) => s.setToken);
 
@@ -44,23 +45,32 @@ export default function SetupPage() {
   }
 
   async function finishSetup() {
+    setError("");
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_APP_API_URL || "http://localhost:8080"}/admin/setup`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(config),
-        }
-      );
+      const apiBase =
+        process.env.NEXT_PUBLIC_APP_API_URL ||
+        `${window.location.protocol}//${window.location.hostname}:8080`;
+
+      const res = await fetch(`${apiBase}/admin/setup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
+
       if (res.ok) {
         const { access_token } = await res.json();
         setToken(access_token);
         router.push("/dashboard");
+      } else if (res.status === 409) {
+        setError("An admin account already exists. Please use the login page.");
+      } else if (res.status === 403) {
+        setError("Setup is only available on self-hosted instances.");
+      } else {
+        const body = await res.text();
+        setError(body || "Setup failed. Check the server logs.");
       }
     } catch {
-      // Setup endpoint may not exist yet — redirect anyway
-      router.push("/login");
+      setError("Could not reach the server. Make sure the backend is running.");
     }
   }
 
@@ -205,11 +215,21 @@ export default function SetupPage() {
 
           {step.id === "done" && (
             <div className="text-center py-8">
-              <p className="text-5xl mb-4">✅</p>
-              <h2 className="text-xl font-heading font-bold mb-2">You&apos;re all set!</h2>
-              <p className="text-on-surface-dim">
-                Your Cookest instance is configured and ready to use.
-              </p>
+              {error ? (
+                <>
+                  <p className="text-5xl mb-4">❌</p>
+                  <h2 className="text-xl font-heading font-bold mb-2">Setup failed</h2>
+                  <p className="text-danger text-sm">{error}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-5xl mb-4">✅</p>
+                  <h2 className="text-xl font-heading font-bold mb-2">You&apos;re all set!</h2>
+                  <p className="text-on-surface-dim">
+                    Your Cookest instance is configured and ready to use.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>

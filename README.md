@@ -29,6 +29,23 @@ The admin panel uses the following environment variables:
 
 ---
 
+## Self-Hosted First-Run Setup
+
+When running as part of a self-hosted instance (i.e. the backend has `SELF_HOSTED=true`),
+the admin panel handles first-run automatically:
+
+1. `cookest init` — collects admin credentials and generates the Docker Compose stack
+2. `cookest up` — starts all services and provisions the admin account via `POST /admin/setup`
+3. Open the admin panel URL — you are redirected straight to `/dashboard` (login if needed)
+
+If `cookest up` could not reach the API during startup, the admin panel will detect that
+no admin exists (`GET /admin/setup/status` returns `needs_setup: true`) and redirect to
+`/setup` where you can complete setup manually.
+
+The setup endpoint is disabled (`403 Forbidden`) on non-self-hosted deployments.
+
+---
+
 ## Getting Started
 
 ### Prerequisites
