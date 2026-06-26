@@ -93,6 +93,121 @@ export async function getRecipes(token: string, page = 1, perPage = 20) {
   );
 }
 
+// ── Ingredients (master catalog, proxied to food-api) ──
+export interface IngredientListItem {
+  id: number;
+  name: string;
+  category: string | null;
+  image_url: string | null;
+}
+
+export interface Paginated<T> {
+  data: T[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+export interface IngredientNutrients {
+  calories?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  sodium_mg?: number | null;
+  saturated_fat_g?: number | null;
+  cholesterol_mg?: number | null;
+}
+
+export interface IngredientPayload {
+  name: string;
+  category?: string | null;
+  image_url?: string | null;
+  nutrients?: IngredientNutrients | null;
+}
+
+export async function getIngredients(
+  token: string,
+  q = "",
+  category = "",
+  page = 1,
+  perPage = 20
+) {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (category) params.set("category", category);
+  params.set("page", String(page));
+  params.set("per_page", String(perPage));
+  return request<Paginated<IngredientListItem>>(
+    `${API_BASE}/admin/ingredients?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+}
+
+export async function getIngredientCategories(token: string) {
+  return request<{ categories: string[] }>(`${API_BASE}/admin/ingredients/categories`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function getIngredientDetail(token: string, id: number) {
+  return request<any>(`${API_BASE}/admin/ingredients/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function createIngredient(token: string, data: IngredientPayload) {
+  return request<any>(`${API_BASE}/admin/ingredients`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateIngredient(
+  token: string,
+  id: number,
+  data: Partial<IngredientPayload>
+) {
+  return request<any>(`${API_BASE}/admin/ingredients/${id}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function scanIngredientImport(token: string, folder: string) {
+  return request<{ files: string[]; folder: string }>(
+    `${API_BASE}/admin/ingredients/import/scan?folder=${encodeURIComponent(folder)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+}
+
+export async function importIngredientsFile(token: string, folder: string, filename: string) {
+  return request<{ success: boolean; rows_imported: number; message: string }>(
+    `${API_BASE}/admin/ingredients/import/execute`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ folder, filename }),
+    }
+  );
+}
+
+export async function deleteIngredient(token: string, id: number) {
+  // DELETE returns 204 No Content — don't try to JSON-parse the body.
+  const res = await fetch(`${API_BASE}/admin/ingredients/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw { status: res.status, message: body } satisfies ApiError;
+  }
+}
+
 // ── Stats ──
 export async function getDashboardStats(token: string) {
   return request<{
