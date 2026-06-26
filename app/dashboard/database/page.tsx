@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import {
   Alert,
@@ -20,6 +20,13 @@ export default function DatabasePage() {
   const token = useAuth((s) => s.token);
   const [backupInProgress, setBackupInProgress] = useState(false);
 
+  // Settings state
+  const [activeSource, setActiveSource] = useState<string>("local");
+  const [sourceLoading, setSourceLoading] = useState<boolean>(true);
+  const [saveSourceLoading, setSaveSourceLoading] = useState<boolean>(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const [sourceSaved, setSourceSaved] = useState<boolean>(false);
+
   // Dataset Import state
   const [importFolder, setImportFolder] = useState("/data/imports");
   const [scanLoading, setScanLoading] = useState(false);
@@ -33,6 +40,54 @@ export default function DatabasePage() {
     rows_imported: number;
     message: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    async function fetchSource() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/database/settings/food-source`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setActiveSource(data.source);
+        }
+      } catch (err) {
+        console.error("Failed to fetch food source", err);
+      } finally {
+        setSourceLoading(false);
+      }
+    }
+    fetchSource();
+  }, [token]);
+
+  async function handleSaveSource(val: string) {
+    if (!token) return;
+    setSaveSourceLoading(true);
+    setSourceError(null);
+    setSourceSaved(false);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/database/settings/food-source`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ source: val }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to update food source");
+      }
+      setActiveSource(val);
+      setSourceSaved(true);
+      setTimeout(() => setSourceSaved(false), 3000);
+    } catch (err) {
+      setSourceError(err instanceof Error ? err.message : "Failed to save food source");
+    } finally {
+      setSaveSourceLoading(false);
+    }
+  }
 
   async function handleScanFolder() {
     setScanLoading(true);
@@ -124,6 +179,56 @@ export default function DatabasePage() {
             </div>
           </div>
         </div>
+
+        {/* Food Catalog Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-heading font-bold text-lg">Food Catalog Data Source</h2>
+                <p className="text-sm text-on-surface-dim mt-1">
+                  Choose where the app fetches ingredients, macros, and images from.
+                </p>
+              </div>
+              {sourceSaved && <span className="text-success text-sm font-medium">Saved ✓</span>}
+            </div>
+          </CardHeader>
+          <CardBody>
+            {sourceLoading ? (
+              <div className="flex items-center gap-2 py-2">
+                <Spinner size="sm" />
+                <span className="text-sm text-on-surface-dim">Loading settings…</span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Select
+                  label="Active Data Source"
+                  value={activeSource}
+                  onChange={(val) => handleSaveSource(val)}
+                  disabled={saveSourceLoading}
+                  options={[
+                    { value: "local", label: "Local Database Only" },
+                    { value: "fatsecret", label: "FatSecret API Only" },
+                    { value: "openfoodfacts", label: "OpenFoodFacts API Only" },
+                    { value: "hybrid", label: "Hybrid (Local DB + OFF + FatSecret)" },
+                  ]}
+                />
+                
+                {sourceError && (
+                  <Alert variant="error" title="Failed to save">
+                    {sourceError}
+                  </Alert>
+                )}
+
+                <div className="p-3 bg-primary/5 rounded-lg border border-primary/10">
+                  <p className="text-xs text-primary font-medium">
+                    Note: Hybrid mode tries resolving barcodes and ingredients locally first. If missing, it queries OpenFoodFacts (with dynamic image caching) and falls back to FatSecret.
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardBody>
+        </Card>
 
         {/* Backup & Restore */}
         <div className="bg-surface rounded-xl p-6 shadow-sm border border-surface-container">
