@@ -57,7 +57,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
 // ── Auth ──
 export async function adminLogin(email: string, password: string) {
-  return request<{ access_token: string }>(`${API_BASE}/auth/login`, {
+  return request<{ access_token: string }>(`${API_BASE}/api/auth/login`, {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
