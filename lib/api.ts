@@ -30,8 +30,8 @@ const getFoodApiBase = () => {
   return "http://localhost:8081";
 };
 
-const API_BASE = getApiBase();
-const FOOD_API_BASE = getFoodApiBase();
+export const API_BASE = getApiBase();
+export const FOOD_API_BASE = getFoodApiBase();
 
 export interface ApiError {
   status: number;
@@ -88,7 +88,7 @@ export async function updateUser(token: string, id: string, data: Record<string,
 // ── Recipes ──
 export async function getRecipes(token: string, page = 1, perPage = 20) {
   return request<{ recipes: any[]; total: number }>(
-    `${FOOD_API_BASE}/recipes?page=${page}&per_page=${perPage}`,
+    `${API_BASE}/api/recipes?page=${page}&per_page=${perPage}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
 }
@@ -126,5 +126,34 @@ export async function updateSettings(token: string, settings: Record<string, unk
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(settings),
+  });
+}
+
+// ── Database ──
+export async function getFoodSource(token: string) {
+  return request<{ source: string }>(`${API_BASE}/api/admin/database/settings/food-source`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function updateFoodSource(token: string, source: string) {
+  return request<any>(`${API_BASE}/api/admin/database/settings/food-source`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ source }),
+  });
+}
+
+export async function scanImportFolder(token: string, folder: string) {
+  return request<{ files: string[] }>(`${API_BASE}/api/admin/database/import/scan?folder=${encodeURIComponent(folder)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function executeImport(token: string, folder: string, filename: string, format: string) {
+  return request<{ success: boolean; rows_imported: number; message: string }>(`${API_BASE}/api/admin/database/import/execute`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ folder, filename, format }),
   });
 }

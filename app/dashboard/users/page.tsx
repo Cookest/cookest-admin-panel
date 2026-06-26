@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { getUsers, updateUser } from "@/lib/api";
+import { Card, CardBody, Badge, Button, Input, Modal, Select, Alert } from "@cookest/ui";
+import { Users as UsersIcon, Search, Pencil } from "lucide-react";
 
 export default function UsersPage() {
   const token = useAuth((s) => s.token);
@@ -10,15 +12,24 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // Edit Modal State
+  const [editUser, setEditUser] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!token) return;
+    setLoading(true);
     getUsers(token, page)
       .then((data) => {
         setUsers(data.users);
         setTotal(data.total);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [token, page]);
 
   const filteredUsers = search
@@ -29,114 +40,191 @@ export default function UsersPage() {
       )
     : users;
 
-  async function toggleAdmin(userId: string, isAdmin: boolean) {
-    if (!token) return;
-    await updateUser(token, userId, { is_admin: !isAdmin });
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, is_admin: !isAdmin } : u))
-    );
-  }
+  const handleEditClick = (user: any) => {
+    setEditUser(user);
+    setEditForm({
+      name: user.name || "",
+      subscription_tier: user.subscription_tier || "free",
+      is_admin: user.is_admin ? "true" : "false",
+    });
+    setError("");
+  };
+
+  const handleSave = async () => {
+    if (!token || !editUser) return;
+    setSaving(true);
+    setError("");
+    try {
+      const data = {
+        name: editForm.name,
+        subscription_tier: editForm.subscription_tier,
+        is_admin: editForm.is_admin === "true",
+      };
+      await updateUser(token, editUser.id, data);
+      
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editUser.id ? { ...u, ...data } : u))
+      );
+      setEditUser(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to update user");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-heading font-bold">Users</h1>
-        <p className="text-on-surface-dim">{total} total</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-heading font-bold flex items-center gap-3">
+          <UsersIcon className="w-8 h-8 text-primary" />
+          Users
+        </h1>
+        <Badge variant="default">{total} Total</Badge>
       </div>
 
-      <div className="mb-4">
-        <input
-          type="text"
+      <div className="flex items-center max-w-sm">
+        <Input
+          placeholder="Search users..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search users..."
-          className="w-full max-w-sm px-3 py-2 border border-surface-container-high rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          iconLeft={<Search className="w-4 h-4" />}
+          fullWidth
         />
       </div>
 
-      <div className="bg-surface rounded-xl shadow-sm border border-surface-container overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-surface-container bg-surface-dim">
-              <th className="text-left px-4 py-3 font-medium text-on-surface-dim">Name</th>
-              <th className="text-left px-4 py-3 font-medium text-on-surface-dim">Email</th>
-              <th className="text-left px-4 py-3 font-medium text-on-surface-dim">Tier</th>
-              <th className="text-left px-4 py-3 font-medium text-on-surface-dim">Admin</th>
-              <th className="text-left px-4 py-3 font-medium text-on-surface-dim">Joined</th>
-              <th className="text-left px-4 py-3 font-medium text-on-surface-dim">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.map((user) => (
-              <tr key={user.id} className="border-b border-surface-container last:border-0 hover:bg-surface-dim transition-colors">
-                <td className="px-4 py-3 font-medium">{user.name || "—"}</td>
-                <td className="px-4 py-3 text-on-surface-dim">{user.email}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      user.subscription_tier === "pro"
-                        ? "bg-primary/10 text-primary"
-                        : user.subscription_tier === "family"
-                        ? "bg-info/10 text-info"
-                        : "bg-surface-container text-on-surface-dim"
-                    }`}
-                  >
-                    {user.subscription_tier || "free"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {user.is_admin ? (
-                    <span className="text-primary font-medium">Yes</span>
-                  ) : (
-                    <span className="text-on-surface-muted">No</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-on-surface-dim">
-                  {user.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => toggleAdmin(user.id, user.is_admin)}
-                    className="text-xs px-2 py-1 rounded border border-surface-container-high hover:bg-surface-dim transition-colors"
-                  >
-                    {user.is_admin ? "Remove admin" : "Make admin"}
-                  </button>
-                </td>
+      <Card>
+        <CardBody className="p-0 overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead>
+              <tr className="border-b border-surface-container bg-surface-dim">
+                <th className="px-6 py-4 font-medium text-on-surface-dim">User</th>
+                <th className="px-6 py-4 font-medium text-on-surface-dim">Tier</th>
+                <th className="px-6 py-4 font-medium text-on-surface-dim">Role</th>
+                <th className="px-6 py-4 font-medium text-on-surface-dim">Joined</th>
+                <th className="px-6 py-4 font-medium text-on-surface-dim text-right">Actions</th>
               </tr>
-            ))}
-            {filteredUsers.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-on-surface-dim">
-                  No users found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredUsers.map((user) => (
+                <tr key={user.id} className="border-b border-surface-container last:border-0 hover:bg-surface-dim/50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0 select-none">
+                        {(user.name ?? user.email ?? "?").charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium">{user.name || "—"}</p>
+                        <p className="text-xs text-on-surface-dim">{user.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <Badge variant={user.subscription_tier === "pro" ? "success" : user.subscription_tier === "family" ? "default" : "default"}>
+                      {user.subscription_tier || "free"}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4">
+                    {user.is_admin ? (
+                      <Badge variant="success" dot>Admin</Badge>
+                    ) : (
+                      <span className="text-on-surface-dim">User</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-on-surface-dim">
+                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Button variant="ghost" size="sm" onClick={() => handleEditClick(user)} iconLeft={<Pencil className="w-4 h-4" />}>
+                      Edit
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {!loading && filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-on-surface-dim">
+                    No users found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </CardBody>
+      </Card>
 
       {/* Pagination */}
       {total > 20 && (
         <div className="flex justify-center gap-2 mt-4">
-          <button
+          <Button
+            variant="secondary"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-3 py-1.5 rounded border border-surface-container-high disabled:opacity-30"
           >
             Previous
-          </button>
-          <span className="px-3 py-1.5 text-on-surface-dim">
+          </Button>
+          <span className="flex items-center px-4 text-on-surface-dim">
             Page {page} of {Math.ceil(total / 20)}
           </span>
-          <button
+          <Button
+            variant="secondary"
             onClick={() => setPage((p) => p + 1)}
             disabled={page * 20 >= total}
-            className="px-3 py-1.5 rounded border border-surface-container-high disabled:opacity-30"
           >
             Next
-          </button>
+          </Button>
         </div>
       )}
+
+      {/* Edit Modal */}
+      <Modal
+        open={!!editUser}
+        onClose={() => setEditUser(null)}
+        title="Edit User"
+        size="md"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEditUser(null)}>Cancel</Button>
+            <Button variant="primary" onClick={handleSave} loading={saving}>Save Changes</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && <Alert variant="error" title="Error">{error}</Alert>}
+          <Input
+            label="Name"
+            value={editForm.name}
+            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            fullWidth
+          />
+          <Input
+            label="Email"
+            value={editUser?.email || ""}
+            disabled
+            fullWidth
+            helperText="Emails cannot be changed from the dashboard."
+          />
+          <Select
+            label="Subscription Tier"
+            value={editForm.subscription_tier}
+            onChange={(val) => setEditForm({ ...editForm, subscription_tier: val })}
+            options={[
+              { value: "free", label: "Free" },
+              { value: "pro", label: "Pro" },
+              { value: "family", label: "Family" },
+            ]}
+          />
+          <Select
+            label="Role"
+            value={editForm.is_admin}
+            onChange={(val) => setEditForm({ ...editForm, is_admin: val })}
+            options={[
+              { value: "false", label: "User" },
+              { value: "true", label: "Admin" },
+            ]}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

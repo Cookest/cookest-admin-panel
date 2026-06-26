@@ -2,23 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import {
-  Alert,
-  Button,
-  Card,
-  CardBody,
-  CardFooter,
-  CardHeader,
-  Input,
-  Select,
-  Spinner,
-} from "@cookest/ui";
-
-const API_BASE = process.env.NEXT_PUBLIC_APP_API_URL || "http://localhost:8080";
+import { getSettings, updateSettings, scanImportFolder, executeImport } from "@/lib/api";
+import { Alert, Button, Card, CardBody, CardHeader, CardFooter, Input, Select, Spinner } from "@cookest/ui";
+import { Database, Search } from "lucide-react";
 
 export default function DatabasePage() {
   const token = useAuth((s) => s.token);
-  const [backupInProgress, setBackupInProgress] = useState(false);
 
   // Settings state
   const [activeSource, setActiveSource] = useState<string>("local");
@@ -43,22 +32,11 @@ export default function DatabasePage() {
 
   useEffect(() => {
     if (!token) return;
-    async function fetchSource() {
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/database/settings/food-source`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setActiveSource(data.source);
-        }
-      } catch (err) {
-        console.error("Failed to fetch food source", err);
-      } finally {
-        setSourceLoading(false);
-      }
-    }
-    fetchSource();
+    setSourceLoading(true);
+    getSettings(token)
+      .then((data) => setActiveSource(data.food_data_source || "local"))
+      .catch((err) => console.error("Failed to fetch food source", err))
+      .finally(() => setSourceLoading(false));
   }, [token]);
 
   async function handleSaveSource(val: string) {
@@ -67,47 +45,29 @@ export default function DatabasePage() {
     setSourceError(null);
     setSourceSaved(false);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/database/settings/food-source`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ source: val }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to update food source");
-      }
+      await updateSettings(token, { food_data_source: val });
       setActiveSource(val);
       setSourceSaved(true);
       setTimeout(() => setSourceSaved(false), 3000);
-    } catch (err) {
-      setSourceError(err instanceof Error ? err.message : "Failed to save food source");
+    } catch (err: any) {
+      setSourceError(err.message || "Failed to save food source");
     } finally {
       setSaveSourceLoading(false);
     }
   }
 
   async function handleScanFolder() {
+    if (!token) return;
     setScanLoading(true);
     setScanError(null);
     setFoundFiles([]);
     setSelectedFile(null);
     setImportResult(null);
     try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/database/import/scan?folder=${encodeURIComponent(importFolder)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(body || `Request failed with status ${res.status}`);
-      }
-      const data: { files: string[] } = await res.json();
+      const data = await scanImportFolder(token, importFolder);
       setFoundFiles(data.files);
-    } catch (err) {
-      setScanError(err instanceof Error ? err.message : "Failed to scan folder");
+    } catch (err: any) {
+      setScanError(err.message || "Failed to scan folder");
     } finally {
       setScanLoading(false);
     }
@@ -124,34 +84,17 @@ export default function DatabasePage() {
   }
 
   async function handleImport() {
-    if (!selectedFile) return;
+    if (!token || !selectedFile) return;
     setImportLoading(true);
     setImportResult(null);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/database/import/execute`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          folder: importFolder,
-          filename: selectedFile,
-          format: importFormat,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(body || `Request failed with status ${res.status}`);
-      }
-      const data: { success: boolean; rows_imported: number; message: string } =
-        await res.json();
+      const data = await executeImport(token, importFolder, selectedFile, importFormat);
       setImportResult(data);
-    } catch (err) {
+    } catch (err: any) {
       setImportResult({
         success: false,
         rows_imported: 0,
-        message: err instanceof Error ? err.message : "Import failed",
+        message: err.message || "Import failed",
       });
     } finally {
       setImportLoading(false);
@@ -159,239 +102,198 @@ export default function DatabasePage() {
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-heading font-bold mb-6">Database</h1>
+    <div className="space-y-8 max-w-3xl">
+      <h1 className="text-3xl font-heading font-bold flex items-center gap-3">
+        <Database className="w-8 h-8 text-primary" />
+        Database
+      </h1>
 
-      <div className="space-y-6 max-w-2xl">
-        {/* Overview */}
-        <div className="bg-surface rounded-xl p-6 shadow-sm border border-surface-container">
-          <h2 className="font-heading font-bold text-lg mb-4">Database Overview</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-surface-dim rounded-lg">
-              <p className="text-sm text-on-surface-dim">Food Database</p>
-              <p className="font-medium mt-1">PostgreSQL 16</p>
-              <p className="text-xs text-on-surface-muted mt-1">Port 5432</p>
-            </div>
-            <div className="p-4 bg-surface-dim rounded-lg">
-              <p className="text-sm text-on-surface-dim">App Database</p>
-              <p className="font-medium mt-1">PostgreSQL 16</p>
-              <p className="text-xs text-on-surface-muted mt-1">Port 5433</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Food Catalog Settings */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
+      {/* Overview */}
+      <Card>
+        <CardHeader>
+          <h2 className="font-heading font-bold text-lg">Database Overview</h2>
+        </CardHeader>
+        <CardBody className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 bg-surface-dim rounded-xl border border-surface-container flex items-center gap-4">
+              <Database className="w-6 h-6 text-primary/70" />
               <div>
-                <h2 className="font-heading font-bold text-lg">Food Catalog Data Source</h2>
-                <p className="text-sm text-on-surface-dim mt-1">
-                  Choose where the app fetches ingredients, macros, and images from.
-                </p>
+                <p className="text-sm font-medium text-on-surface-dim">Food Database</p>
+                <p className="font-bold">PostgreSQL 16</p>
+                <p className="text-xs text-on-surface-muted mt-0.5">Port 5432</p>
               </div>
-              {sourceSaved && <span className="text-success text-sm font-medium">Saved ✓</span>}
             </div>
-          </CardHeader>
-          <CardBody>
-            {sourceLoading ? (
-              <div className="flex items-center gap-2 py-2">
-                <Spinner size="sm" />
-                <span className="text-sm text-on-surface-dim">Loading settings…</span>
+            <div className="p-4 bg-surface-dim rounded-xl border border-surface-container flex items-center gap-4">
+              <Database className="w-6 h-6 text-primary/70" />
+              <div>
+                <p className="text-sm font-medium text-on-surface-dim">App Database</p>
+                <p className="font-bold">PostgreSQL 16</p>
+                <p className="text-xs text-on-surface-muted mt-0.5">Port 5433</p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <Select
-                  label="Active Data Source"
-                  value={activeSource}
-                  onChange={(val) => handleSaveSource(val)}
-                  disabled={saveSourceLoading}
-                  options={[
-                    { value: "local", label: "Local Database Only" },
-                    { value: "fatsecret", label: "FatSecret API Only" },
-                    { value: "openfoodfacts", label: "OpenFoodFacts API Only" },
-                    { value: "hybrid", label: "Hybrid (Local DB + OFF + FatSecret)" },
-                  ]}
-                />
-                
-                {sourceError && (
-                  <Alert variant="error" title="Failed to save">
-                    {sourceError}
-                  </Alert>
-                )}
-
-                <div className="p-3 bg-primary/5 rounded-lg border border-primary/10">
-                  <p className="text-xs text-primary font-medium">
-                    Note: Hybrid mode tries resolving barcodes and ingredients locally first. If missing, it queries OpenFoodFacts (with dynamic image caching) and falls back to FatSecret.
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardBody>
-        </Card>
-
-        {/* Backup & Restore */}
-        <div className="bg-surface rounded-xl p-6 shadow-sm border border-surface-container">
-          <h2 className="font-heading font-bold text-lg mb-2">Backup & Restore</h2>
-          <p className="text-sm text-on-surface-dim mb-4">
-            Database backups are managed via the CLI for security. Use these commands:
-          </p>
-          <div className="space-y-2">
-            <div className="p-3 bg-surface-dim rounded-lg font-mono text-sm">
-              <span className="text-on-surface-muted">$</span> cookest backup
-            </div>
-            <div className="p-3 bg-surface-dim rounded-lg font-mono text-sm">
-              <span className="text-on-surface-muted">$</span> cookest restore --food-db backup.dump
             </div>
           </div>
-        </div>
+        </CardBody>
+      </Card>
 
-        {/* Migrations */}
-        <div className="bg-surface rounded-xl p-6 shadow-sm border border-surface-container">
-          <h2 className="font-heading font-bold text-lg mb-2">Migrations</h2>
-          <p className="text-sm text-on-surface-dim">
-            Migrations run automatically on every server start. All operations use{" "}
-            <code className="px-1 py-0.5 bg-surface-dim rounded text-xs font-mono">IF NOT EXISTS</code>{" "}
-            making them safe to replay. No manual migration steps needed.
-          </p>
-        </div>
-
-        {/* ETL */}
-        <div className="bg-surface rounded-xl p-6 shadow-sm border border-surface-container">
-          <h2 className="font-heading font-bold text-lg mb-2">Data Seeding (ETL)</h2>
-          <p className="text-sm text-on-surface-dim mb-4">
-            Seed the database with recipe and ingredient data from USDA FoodData Central
-            and TheMealDB using the ETL pipeline.
-          </p>
-          <div className="p-3 bg-surface-dim rounded-lg font-mono text-sm">
-            <span className="text-on-surface-muted">$</span> docker compose exec etl python main.py
+      {/* Food Catalog Settings */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between w-full">
+            <div>
+              <h2 className="font-heading font-bold text-lg">Food Catalog Data Source</h2>
+              <p className="text-sm text-on-surface-dim mt-1">
+                Choose where the app fetches ingredients, macros, and images from.
+              </p>
+            </div>
+            {sourceSaved && <span className="text-success text-sm font-medium whitespace-nowrap ml-4">Saved ✓</span>}
           </div>
-        </div>
-
-        {/* Dataset Import */}
-        <Card>
-          <CardHeader>
-            <h2 className="font-heading font-bold text-lg">Dataset Import</h2>
-            <p className="text-sm text-on-surface-dim mt-1">
-              Scan a server folder and import CSV or JSON dataset files into the database.
-            </p>
-          </CardHeader>
-
-          <CardBody>
+        </CardHeader>
+        <CardBody className="p-6">
+          {sourceLoading ? (
+            <div className="flex justify-center p-4"><Spinner size="md" color="primary" /></div>
+          ) : (
             <div className="space-y-4">
-              {/* Folder input row */}
-              <div className="flex gap-3 items-end">
-                <div className="flex-1">
-                  <Input
-                    label="Folder path"
-                    value={importFolder}
-                    onChange={(e) => setImportFolder(e.target.value)}
-                    placeholder="/data/imports"
-                    fullWidth
-                  />
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={handleScanFolder}
-                  disabled={scanLoading || !importFolder.trim()}
-                  loading={scanLoading}
-                >
-                  {scanLoading ? "Scanning…" : "Scan Folder"}
-                </Button>
-              </div>
-
-              {/* Scan error */}
-              {scanError && (
-                <Alert variant="error" title="Scan failed">
-                  {scanError}
+              <Select
+                label="Active Data Source"
+                value={activeSource}
+                onChange={(val) => handleSaveSource(val)}
+                disabled={saveSourceLoading}
+                options={[
+                  { value: "local", label: "Local Database Only" },
+                  { value: "fatsecret", label: "FatSecret API Only" },
+                  { value: "openfoodfacts", label: "OpenFoodFacts API Only" },
+                  { value: "hybrid", label: "Hybrid (Local DB + OFF + FatSecret)" },
+                ]}
+              />
+              
+              {sourceError && (
+                <Alert variant="error" title="Failed to save">
+                  {sourceError}
                 </Alert>
               )}
 
-              {/* Scanning spinner */}
-              {scanLoading && (
-                <div className="flex items-center gap-2 py-2">
-                  <Spinner size="sm" />
-                  <span className="text-sm text-on-surface-dim">Scanning folder…</span>
-                </div>
-              )}
-
-              {/* File list */}
-              {!scanLoading && foundFiles.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-sm font-medium mb-2">
-                    Found {foundFiles.length} file{foundFiles.length !== 1 ? "s" : ""}
-                  </p>
-                  {foundFiles.map((file) => (
-                    <button
-                      key={file}
-                      type="button"
-                      onClick={() => handleSelectFile(file)}
-                      className={[
-                        "w-full text-left px-3 py-2 rounded-lg text-sm font-mono transition-colors",
-                        selectedFile === file
-                          ? "bg-primary/10 text-primary font-semibold ring-1 ring-primary/40"
-                          : "bg-surface-dim hover:bg-surface-container text-on-surface",
-                      ].join(" ")}
-                    >
-                      {file}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {!scanLoading && foundFiles.length === 0 && !scanError && importFolder && (
-                <p className="text-sm text-on-surface-dim">
-                  No files found yet. Enter a folder path and click Scan Folder.
+              <div className="p-4 bg-primary/10 rounded-xl border border-primary/20">
+                <p className="text-sm text-primary font-medium">
+                  Note: Hybrid mode tries resolving barcodes and ingredients locally first. If missing, it queries OpenFoodFacts (with dynamic image caching) and falls back to FatSecret.
                 </p>
-              )}
-
-              {/* Format selector + Import button — only visible once a file is selected */}
-              {selectedFile && (
-                <div className="space-y-3 pt-2 border-t border-surface-container">
-                  <Select
-                    label="Import format"
-                    value={importFormat}
-                    onChange={(val) => setImportFormat(val as "csv" | "json")}
-                    options={[
-                      { value: "csv", label: "CSV" },
-                      { value: "json", label: "JSON" },
-                    ]}
-                  />
-
-                  {/* Import result alert */}
-                  {importResult && (
-                    <Alert
-                      variant={importResult.success ? "success" : "error"}
-                      title={importResult.success ? "Import complete" : "Import failed"}
-                    >
-                      {importResult.message}
-                      {importResult.success && importResult.rows_imported > 0 && (
-                        <span className="block mt-1 text-xs">
-                          {importResult.rows_imported.toLocaleString()} row
-                          {importResult.rows_imported !== 1 ? "s" : ""} imported.
-                        </span>
-                      )}
-                    </Alert>
-                  )}
-                </div>
-              )}
+              </div>
             </div>
-          </CardBody>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Dataset Import */}
+      <Card>
+        <CardHeader>
+          <h2 className="font-heading font-bold text-lg">Dataset Import</h2>
+          <p className="text-sm text-on-surface-dim mt-1">
+            Scan a server folder and import CSV or JSON dataset files into the database.
+          </p>
+        </CardHeader>
+
+        <CardBody className="p-6 space-y-6">
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <Input
+                label="Folder path"
+                value={importFolder}
+                onChange={(e) => setImportFolder(e.target.value)}
+                placeholder="/data/imports"
+                fullWidth
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={handleScanFolder}
+              disabled={scanLoading || !importFolder.trim()}
+              loading={scanLoading}
+              iconLeft={<Search className="w-4 h-4" />}
+            >
+              {scanLoading ? "Scanning" : "Scan Folder"}
+            </Button>
+          </div>
+
+          {scanError && (
+            <Alert variant="error" title="Scan failed">
+              {scanError}
+            </Alert>
+          )}
+
+          {!scanLoading && foundFiles.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                Found {foundFiles.length} file{foundFiles.length !== 1 ? "s" : ""}
+              </p>
+              <div className="grid gap-2">
+                {foundFiles.map((file) => (
+                  <button
+                    key={file}
+                    type="button"
+                    onClick={() => handleSelectFile(file)}
+                    className={[
+                      "w-full text-left px-4 py-3 rounded-xl text-sm font-mono transition-all",
+                      selectedFile === file
+                        ? "bg-primary text-primary-foreground shadow-md font-medium"
+                        : "bg-surface-dim hover:bg-surface-container text-on-surface",
+                    ].join(" ")}
+                  >
+                    {file}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!scanLoading && foundFiles.length === 0 && !scanError && importFolder && (
+            <p className="text-sm text-on-surface-dim italic">
+              No files found yet. Enter a folder path and click Scan Folder.
+            </p>
+          )}
 
           {selectedFile && (
-            <CardFooter>
-              <Button
-                variant="primary"
-                onClick={handleImport}
-                disabled={importLoading}
-                loading={importLoading}
-              >
-                {importLoading ? "Importing…" : "Import Dataset"}
-              </Button>
-            </CardFooter>
+            <div className="pt-6 border-t border-surface-container space-y-4">
+              <Select
+                label="Import format"
+                value={importFormat}
+                onChange={(val) => setImportFormat(val as "csv" | "json")}
+                options={[
+                  { value: "csv", label: "CSV" },
+                  { value: "json", label: "JSON" },
+                ]}
+              />
+
+              {importResult && (
+                <Alert
+                  variant={importResult.success ? "success" : "error"}
+                  title={importResult.success ? "Import complete" : "Import failed"}
+                >
+                  {importResult.message}
+                  {importResult.success && importResult.rows_imported > 0 && (
+                    <span className="block mt-2 text-sm font-medium">
+                      {importResult.rows_imported.toLocaleString()} row
+                      {importResult.rows_imported !== 1 ? "s" : ""} imported.
+                    </span>
+                  )}
+                </Alert>
+              )}
+            </div>
           )}
-        </Card>
-      </div>
+        </CardBody>
+
+        {selectedFile && (
+          <CardFooter>
+            <Button
+              variant="primary"
+              onClick={handleImport}
+              disabled={importLoading}
+              loading={importLoading}
+              fullWidth
+            >
+              {importLoading ? "Importing…" : "Start Import"}
+            </Button>
+          </CardFooter>
+        )}
+      </Card>
     </div>
   );
 }

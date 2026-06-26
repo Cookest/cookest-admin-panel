@@ -4,18 +4,28 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
+import {
+  LayoutDashboard,
+  Users,
+  Utensils,
+  Carrot,
+  Bot,
+  Database,
+  Settings as SettingsIcon,
+  Wrench,
+  LogOut,
+} from "lucide-react";
+import { CookestIcon } from "@/components/CookestIcon";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: "📊" },
-  { name: "Users", href: "/dashboard/users", icon: "👥" },
-  { name: "Recipes", href: "/dashboard/recipes", icon: "🍽️" },
-  { name: "Ingredients", href: "/dashboard/ingredients", icon: "🥕" },
-  { name: "AI", href: "/dashboard/ai", icon: "🤖" },
-  { name: "Subscriptions", href: "/dashboard/subscriptions", icon: "💳" },
-  { name: "Promotions", href: "/dashboard/promotions", icon: "🏷️" },
-  { name: "Database", href: "/dashboard/database", icon: "🗄️" },
-  { name: "System", href: "/dashboard/system", icon: "⚙️" },
-  { name: "Settings", href: "/dashboard/settings", icon: "🔧" },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Users", href: "/dashboard/users", icon: Users },
+  { name: "Recipes", href: "/dashboard/recipes", icon: Utensils },
+  { name: "Ingredients", href: "/dashboard/ingredients", icon: Carrot },
+  { name: "AI", href: "/dashboard/ai", icon: Bot },
+  { name: "Database", href: "/dashboard/database", icon: Database },
+  { name: "System", href: "/dashboard/system", icon: Wrench },
+  { name: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -32,50 +42,52 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!token) return null;
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-background text-foreground">
       {/* Sidebar */}
-      <aside className="w-64 bg-sidebar text-sidebar-text flex flex-col shrink-0">
-        <div className="p-6 border-b border-white/10">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="text-2xl">🍳</span>
-            <span className="text-lg font-heading font-bold text-white">Cookest</span>
+      <aside className="w-64 bg-sidebar text-sidebar-text flex flex-col shrink-0 border-r border-sidebar shadow-sm">
+        <div className="p-6 border-b border-sidebar-hover">
+          <Link href="/dashboard" className="flex items-center gap-2 text-sidebar-text-active">
+            <CookestIcon className="w-8 h-8 text-white" />
+            <span className="text-xl font-heading font-bold">Cookest</span>
           </Link>
-          <p className="text-xs text-sidebar-text/60 mt-1">Admin Panel</p>
+          <p className="text-xs text-on-surface-muted mt-1 font-medium tracking-wide uppercase">Admin Panel</p>
         </div>
 
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
             const active =
               item.href === "/dashboard"
                 ? pathname === "/dashboard"
                 : pathname.startsWith(item.href);
 
+            const Icon = item.icon;
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 group ${
                   active
-                    ? "bg-sidebar-active/20 text-sidebar-text-active font-medium"
-                    : "hover:bg-sidebar-hover text-sidebar-text"
+                    ? "bg-primary text-primary-foreground font-medium shadow-md shadow-primary/20"
+                    : "text-on-surface-dim hover:bg-surface-dim hover:text-on-surface"
                 }`}
               >
-                <span className="text-base">{item.icon}</span>
+                <Icon className={`w-5 h-5 ${active ? "text-primary-foreground" : "text-on-surface-muted group-hover:text-primary transition-colors"}`} />
                 {item.name}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-3 border-t border-white/10">
+        <div className="p-4 border-t border-border">
           <button
             onClick={() => {
               logout();
               router.push("/login");
             }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-text hover:bg-sidebar-hover transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-on-surface-dim hover:bg-danger/10 hover:text-danger transition-colors group"
           >
-            <span className="text-base">🚪</span>
+            <LogOut className="w-5 h-5 text-on-surface-muted group-hover:text-danger transition-colors" />
             Sign out
           </button>
         </div>
@@ -83,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="p-8">{children}</div>
+        <div className="p-8 max-w-7xl mx-auto">{children}</div>
       </main>
     </div>
   );

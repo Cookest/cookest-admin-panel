@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { getDashboardStats } from "@/lib/api";
+import { Card, CardBody, Alert } from "@cookest/ui";
+import { Users, Utensils, Carrot, ClipboardList, Activity } from "lucide-react";
 
 interface Stats {
   total_users: number;
@@ -16,22 +18,26 @@ interface Stats {
 function StatCard({
   label,
   value,
-  icon,
+  icon: Icon,
 }: {
   label: string;
   value: string | number;
-  icon: string;
+  icon: any;
 }) {
   return (
-    <div className="bg-surface rounded-xl p-6 shadow-sm border border-surface-container">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-on-surface-dim">{label}</p>
-          <p className="text-3xl font-bold mt-1">{value}</p>
+    <Card>
+      <CardBody className="p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm font-medium text-on-surface-dim">{label}</p>
+            <p className="text-3xl font-heading font-bold mt-2">{value}</p>
+          </div>
+          <div className="p-3 bg-primary/10 rounded-xl">
+            <Icon className="w-6 h-6 text-primary" />
+          </div>
         </div>
-        <span className="text-3xl">{icon}</span>
-      </div>
-    </div>
+      </CardBody>
+    </Card>
   );
 }
 
@@ -48,61 +54,65 @@ export default function DashboardPage() {
   }, [token]);
 
   return (
-    <div>
-      <h1 className="text-3xl font-heading font-bold mb-6">Dashboard</h1>
+    <div className="space-y-8">
+      <h1 className="text-3xl font-heading font-bold">Dashboard Overview</h1>
 
       {error && (
-        <div className="p-4 bg-warning/10 text-on-surface rounded-lg mb-6 border border-warning/30">
-          <p className="font-medium">Backend not connected</p>
-          <p className="text-sm text-on-surface-dim mt-1">{error}</p>
-        </div>
+        <Alert variant="warning" title="Backend not connected" className="mb-6">
+          {error}
+        </Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           label="Total Users"
           value={stats?.total_users ?? "—"}
-          icon="👥"
+          icon={Users}
         />
         <StatCard
           label="Recipes"
           value={stats?.total_recipes ?? "—"}
-          icon="🍽️"
+          icon={Utensils}
         />
         <StatCard
           label="Ingredients"
           value={stats?.total_ingredients ?? "—"}
-          icon="🥕"
+          icon={Carrot}
         />
         <StatCard
           label="Active Meal Plans"
           value={stats?.active_meal_plans ?? "—"}
-          icon="📋"
+          icon={ClipboardList}
         />
       </div>
 
       {/* System health */}
-      <div className="bg-surface rounded-xl p-6 shadow-sm border border-surface-container">
-        <h2 className="text-lg font-heading font-bold mb-4">System Health</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {["Food DB", "App DB", "Food API", "App API"].map((service) => {
-            const status = stats?.system_health?.[service.toLowerCase().replace(" ", "_")];
-            return (
-              <div
-                key={service}
-                className="flex items-center gap-2 p-3 bg-surface-dim rounded-lg"
-              >
-                <span
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    status === "healthy" ? "bg-success" : "bg-on-surface-muted"
-                  }`}
-                />
-                <span className="text-sm">{service}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <Card>
+        <CardBody className="p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Activity className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-heading font-bold">System Health Quick Look</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {["Food DB", "App DB", "Food API", "App API"].map((service) => {
+              const status = stats?.system_health?.[service.toLowerCase().replace(" ", "_")];
+              return (
+                <div
+                  key={service}
+                  className="flex items-center gap-3 p-4 bg-surface-dim rounded-xl border border-surface-container"
+                >
+                  <span
+                    className={`w-3 h-3 rounded-full shadow-sm ${
+                      status === "healthy" ? "bg-success shadow-success/40" : "bg-on-surface-muted"
+                    }`}
+                  />
+                  <span className="text-sm font-medium">{service}</span>
+                </div>
+              );
+            })}
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }

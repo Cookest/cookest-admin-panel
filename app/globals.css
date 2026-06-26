@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "@cookest/ui/styles.css";
+@source "../node_modules/@cookest/ui/src";
 
 @theme {
   /* Cookest design tokens */
@@ -25,6 +27,14 @@
   --color-sidebar-active: #7A9A65;
   --color-sidebar-text: #D4DCD6;
   --color-sidebar-text-active: #FFFFFF;
+
+  --color-primary-foreground: #FFFFFF;
+  --color-success-foreground: #FFFFFF;
+  --color-danger-foreground: #FFFFFF;
+
+  --color-background: #F8F9FA;
+  --color-foreground: #1A1A1A;
+  --color-border: #E9ECEF;
 
   --font-heading: "Playfair Display", serif;
   --font-body: "Inter", sans-serif;
