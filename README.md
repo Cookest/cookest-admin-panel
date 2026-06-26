@@ -84,6 +84,29 @@ The setup endpoint is disabled (`403 Forbidden`) on non-self-hosted deployments.
 
 ---
 
+## Docker Image
+
+A pre-built image is published to GHCR on every push to `main`:
+
+```
+ghcr.io/cookest/admin:latest
+```
+
+This is pulled automatically when you run `cookest up`.
+
+### Building from Source
+
+```bash
+# Using the Cookest CLI (recommended — also builds the backend images)
+cookest build
+
+# Or manually
+docker build -t cookest/admin:local .
+```
+
+Then use `cookest init --from-source` (or set `[images] source = "local"` in `cookest.toml`)
+to make the stack use your locally built image.
+
 ## Docker Deployment
 
 Build the container image:
